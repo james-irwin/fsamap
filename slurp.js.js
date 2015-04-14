@@ -29,24 +29,32 @@ function allpins(err, data) {
 if (err) throw err;
 var result=JSON.parse(data);
     var places = result['FHRSEstablishment']['EstablishmentCollection'][0]['EstablishmentDetail'];
-
     var pinNumber=0;
     for (var i=0;i<places.length;i++){
     //for (var i = 0; i < 20; i++) {
-        // Skip places without rating values
-
-        if (!((places[i].RatingValue=='1') ||
+        // Skip places without rating values      //console.log(':'+i+':'+JSON.stringify(places[i].RatingValue)+':');
+        
+        if (!((places[i].RatingValue=='1') || // Eng/Wales/Ire
               (places[i].RatingValue=='2') ||
               (places[i].RatingValue=='3') ||
               (places[i].RatingValue=='4') ||
-              (places[i].RatingValue=='5'))
+              (places[i].RatingValue=='5') ||
+              (places[i].RatingValue=='Pass') || // Scot
+              (places[i].RatingValue=='Pass and Eat Safe') ||
+              (places[i].RatingValue=='Improvement Required')
+             )
            )
+        {
+            //console.log('Skipping');
             continue;
-
+        }
         // Skip non-located pins
         if ((typeof places[i].Geocode[0]['Latitude'] == 'undefined') ||
            (typeof places[i].Geocode[0]['Longitude'] == 'undefined'))
+        {
+            //console.log('Skipping for location');
             continue;
+        }
 
         console.log('m[' + pinNumber + ']=new google.maps.Marker({\
                     position:new google.maps.LatLng(' +
@@ -55,20 +63,91 @@ var result=JSON.parse(data);
                     places[i].Geocode[0]['Longitude'] +
                     '),');
         //console.log('::'+(places[i].RatingValue-1)+'::');
-        console.log('title:\''+replaceAll("'","",
+        process.stdout.write('title:\''+replaceAll("'","",
                     places[i].BusinessName)+
-                    ' ('+
-                    starRatings[(places[i].RatingValue-1)]+
-                    ')\',icon:icons['+(places[i].RatingValue-1)+
-                    ']});m['+pinNumber+'].setMap(map);');
-        console.log('iW['+pinNumber+']=new \
+                    ' (');
+        
+        switch(places[i].RatingValue.toString())
+        {
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                {
+        process.stdout.write(starRatings[(places[i].RatingValue-1)]);
+                    break;
+                }
+                case 'Improvement Required':
+                {
+                    process.stdout.write(starRatings[0]);
+                    break;
+                }
+                case 'Pass':
+                {
+                    process.stdout.write(starRatings[3]);
+                    break;
+                }
+                case 'Pass and Eat Safe':
+                {
+                    process.stdout.write(starRatings[4]);
+                    break;
+                }                
+        }
+        
+        process.stdout.write(')\',icon:icons[');
+
+        switch(places[i].RatingValue.toString())
+        {
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                {
+                    process.stdout.write((places[i].RatingValue-1).toString());
+                    break;
+                }
+                case 'Improvement Required':
+                {
+                    process.stdout.write('0');
+                    break;
+                }
+                case 'Pass':
+                {
+                    process.stdout.write('3');
+                    break;
+                }
+                case 'Pass and Eat Safe':
+                {
+                    process.stdout.write('4');
+                    break;
+                }                
+        }
+        console.log(']});m['+pinNumber+'].setMap(map);');
+        process.stdout.write('iW['+pinNumber+']=new \
                     google.maps.InfoWindow({content:\''+
                     // Name and rating
                     replaceAll("'","",
                         places[i].BusinessName)+
-                    ' ('+
-                    starRatings[(places[i].RatingValue-1)]+
-                    ')<br>'+
+                    ' (');
+        switch(places[i].RatingValue.toString())
+        {
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                    process.stdout.write(starRatings[(places[i].RatingValue-1)]);
+                    break;
+                case 'Improvement Required':
+                case 'Pass':
+                case 'Pass and Eat Safe':
+                    process.stdout.write(places[i].RatingValue.toString());
+                    break;
+        }
+        
+        console.log(')<br>'+
                     places[i].RatingDate+
                     '\'});');
         console.log('google.maps.event.addListener(m['+pinNumber+'],\
@@ -87,10 +166,12 @@ var result=JSON.parse(data);
                     // async jazz).
 }
 
-function emitHeader() {
+function emitHeader(id) {
 console.log('<!DOCTYPE html>');
 console.log('<html><head><script src="http://maps.googleapis.com/maps/api/js"></script>');;
-
+    
+    console.log('<title>Food Standards Agency:'+countyNames[id]+' james-irwin@github</title>');
+    
 console.log('<script> \
             function initialize() \
             { \
@@ -124,7 +205,11 @@ console.log('}'); // End of initialise function
 console.log('google.maps.event.addDomListener(window,\
                         \'load\', initialize);');
 console.log('</script>');
-console.log('</head><body><div id="googleMap" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0;"></div></body></html>');
+console.log('</head><body>');
+    // Google analytics
+    console.log('<script>(function(i,s,o,g,r,a,m){i[\'GoogleAnalyticsObject\']=r;i[r]=i[r]||function(){ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),  m=s.getElementsByTagName(o)[0]; a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,\'script\',\'//www.google-analytics.com/analytics.js\',\'ga\');  ga(\'create\', \'UA-16765789-5\', \'auto\');  ga(\'send\', \'pageview\');</script>');
+    
+    console.log('<div id="googleMap" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0;"></div></body></html>');
 }
 
 function doallpins(filename, id){
@@ -222,7 +307,7 @@ function emitBody(){
 }
 
 // Emit the header for the whole map
-emitHeader();
+emitHeader(process.argv[2]);
 emitBody();
 // Emit the footer for the whole map
 // Note -- bad synchronsisation here -- need to emit the footer
